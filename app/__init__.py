@@ -2,10 +2,14 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from config import Config
+from flask_socketio import SocketIO
+
+socketio = SocketIO()
 
 db = SQLAlchemy()
 login_manager = LoginManager()
-login_manager.login_view = 'auth.login'  # login page redirect
+login_manager.login_view = 'auth.login'
+
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -13,6 +17,9 @@ def create_app(config_class=Config):
 
     db.init_app(app)
     login_manager.init_app(app)
+
+    # IMPORTANT
+    socketio.init_app(app)
 
     # Blueprints import
     from app.routes import main, auth, donor, hospital, blood_bank, admin
@@ -31,5 +38,3 @@ def create_app(config_class=Config):
         db.create_all()
 
     return app
-
-
