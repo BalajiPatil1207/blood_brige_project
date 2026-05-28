@@ -1,8 +1,14 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 class Config:
-    SECRET_KEY = 'd49f9a6b4fd10aef72697d037bddc087705cc09eb27fd9f3e6a08cb2138c9df2'
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'd49f9a6b4fd10aef72697d037bddc087705cc09eb27fd9f3e6a08cb2138c9df2'
     
-    # AWS RDS MySQL database URI
-    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://admin:Arbajpanhalkar@mooc-db.cgvqi02wsmgj.us-east-1.rds.amazonaws.com:3306/mooc_db'
+    # Database URI - Uses environment variable, falls back to SQLite, with RDS as an alternative option
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+                              'sqlite:///app.db'
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
