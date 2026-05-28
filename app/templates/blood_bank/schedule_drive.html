@@ -1,113 +1,132 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-    <div class="bg-white shadow rounded-lg p-6">
-        <h1 class="text-3xl font-bold text-gray-900 mb-8">{% if is_edit %}Edit Blood Drive{% else %}Schedule a Blood Drive{% endif %}</h1>
-        
-        <form action="{% if is_edit %}{{ url_for('blood_bank.edit_drive', drive_id=drive.id) }}{% else %}{{ url_for('blood_bank.schedule_drive') }}{% endif %}" method="POST" class="space-y-6">
-            <!-- Basic Information -->
-            <div class="space-y-4">
-                <h2 class="text-xl font-semibold text-gray-900 mb-4">Basic Information</h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="title" class="block text-sm font-medium text-gray-700 mb-2">Drive Title</label>
-                        <input type="text" name="title" id="title" required value="{% if drive %}{{ drive.title }}{% endif %}"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
-                    </div>
+<div class="bg-gradient-to-tr from-rose-50/20 via-white to-rose-50/10 py-16 sm:py-24 animate-fade-in">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="text-center mb-16">
+            <span class="text-primary-600 font-extrabold tracking-wider uppercase text-xs">Drive Requisition</span>
+            <h2 class="text-3xl sm:text-5xl font-black text-slate-900 mt-2">
+                {% if is_edit %}Edit Campaign{% else %}Schedule Blood Drive{% endif %}
+            </h2>
+            <p class="mt-3 max-w-2xl mx-auto text-base text-gray-500 font-medium">
+                Configure your blood donation campaign details, duration, capacity targets, and donor requirements below.
+            </p>
+        </div>
+
+        <!-- Form Card -->
+        <div class="bg-white border border-rose-100/60 rounded-3xl shadow-premium p-8 sm:p-10 relative overflow-hidden">
+            <div class="absolute -right-24 -top-24 w-48 h-48 bg-primary-500/10 rounded-full blur-3xl"></div>
+            
+            <form action="{% if is_edit %}{{ url_for('blood_bank.edit_drive', drive_id=drive.id) }}{% else %}{{ url_for('blood_bank.schedule_drive') }}{% endif %}" method="POST" class="space-y-10">
+                <!-- Section 1: Basic Information -->
+                <div class="space-y-6">
+                    <h3 class="text-lg font-bold text-slate-800 border-b border-rose-50 pb-2">1. Basic Information</h3>
                     
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                            <label for="title" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Campaign Title</label>
+                            <input type="text" name="title" id="title" required value="{% if drive %}{{ drive.title }}{% endif %}"
+                                   class="block w-full px-4 py-3 border border-rose-100/80 rounded-2xl placeholder-gray-400 text-gray-900 font-medium focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition duration-150 sm:text-sm bg-rose-50/10"
+                                   placeholder="e.g., Downtown Charity Drive">
+                        </div>
+                        
+                        <div>
+                            <label for="location" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Venue / Location</label>
+                            <input type="text" name="location" id="location" required value="{% if drive %}{{ drive.location }}{% endif %}"
+                                   class="block w-full px-4 py-3 border border-rose-100/80 rounded-2xl placeholder-gray-400 text-gray-900 font-medium focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition duration-150 sm:text-sm bg-rose-50/10"
+                                   placeholder="e.g., Red Cross Hospital Hall">
+                        </div>
+                    </div>
+
                     <div>
-                        <label for="location" class="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                        <input type="text" name="location" id="location" required value="{% if drive %}{{ drive.location }}{% endif %}"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
+                        <label for="description" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Campaign Description</label>
+                        <textarea name="description" id="description" rows="3" required
+                                  class="block w-full px-4 py-3 border border-rose-100/80 rounded-2xl placeholder-gray-400 text-gray-900 font-medium focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition duration-150 sm:text-sm bg-rose-50/10"
+                                  placeholder="Describe the goals and impact of this blood camp...">{% if drive %}{{ drive.description }}{% endif %}</textarea>
                     </div>
                 </div>
 
-                <div>
-                    <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea name="description" id="description" rows="3" required
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">{% if drive %}{{ drive.description }}{% endif %}</textarea>
-                </div>
-            </div>
-
-            <!-- Schedule Information -->
-            <div class="space-y-4">
-                <h2 class="text-xl font-semibold text-gray-900 mb-4">Schedule Information</h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="start_date" class="block text-sm font-medium text-gray-700 mb-2">Start Date & Time</label>
-                        <input type="datetime-local" name="start_date" id="start_date" required value="{% if drive %}{{ drive.start_date.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
-                    </div>
+                <!-- Section 2: Schedule -->
+                <div class="space-y-6">
+                    <h3 class="text-lg font-bold text-slate-800 border-b border-rose-50 pb-2">2. Schedule Details</h3>
                     
-                    <div>
-                        <label for="end_date" class="block text-sm font-medium text-gray-700 mb-2">End Date & Time</label>
-                        <input type="datetime-local" name="end_date" id="end_date" required value="{% if drive %}{{ drive.end_date.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Capacity and Requirements -->
-            <div class="space-y-4">
-                <h2 class="text-xl font-semibold text-gray-900 mb-4">Capacity and Requirements</h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="target_donors" class="block text-sm font-medium text-gray-700 mb-2">Target Number of Donors</label>
-                        <input type="number" name="target_donors" id="target_donors" min="1" required value="{% if drive %}{{ drive.target_donors }}{% endif %}"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Blood Types Needed</label>
-                        <div class="mt-1 grid grid-cols-2 gap-2">
-                            {% for blood_type in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] %}
-                            <div class="flex items-center">
-                                <input id="blood_type_{{ blood_type }}" name="blood_types" type="checkbox" value="{{ blood_type }}"
-                                       class="focus:ring-red-500 h-4 w-4 text-red-600 border-gray-300 rounded"
-                                       {% if drive and drive.blood_types_needed_list and blood_type in drive.blood_types_needed_list %}checked{% endif %}>
-                                <label for="blood_type_{{ blood_type }}" class="ml-2 block text-sm text-gray-900">
-                                    {{ blood_type }}
-                                </label>
-                            </div>
-                            {% endfor %}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                            <label for="start_date" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Start Date & Time</label>
+                            <input type="datetime-local" name="start_date" id="start_date" required value="{% if drive %}{{ drive.start_date.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
+                                   class="block w-full px-4 py-3 border border-rose-100/80 rounded-2xl text-gray-900 font-medium focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition duration-150 sm:text-sm bg-rose-50/10">
+                        </div>
+                        
+                        <div>
+                            <label for="end_date" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">End Date & Time</label>
+                            <input type="datetime-local" name="end_date" id="end_date" required value="{% if drive %}{{ drive.end_date.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
+                                   class="block w-full px-4 py-3 border border-rose-100/80 rounded-2xl text-gray-900 font-medium focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition duration-150 sm:text-sm bg-rose-50/10">
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Additional Information -->
-            <div class="space-y-4">
-                <h2 class="text-xl font-semibold text-gray-900 mb-4">Additional Information</h2>
-                
-                <div>
-                    <label for="requirements" class="block text-sm font-medium text-gray-700 mb-2">Donor Requirements</label>
-                    <textarea name="requirements" id="requirements" rows="3"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
-                              placeholder="List any specific requirements for donors...">{% if drive %}{{ drive.requirements }}{% endif %}</textarea>
+                <!-- Section 3: Capacity -->
+                <div class="space-y-6">
+                    <h3 class="text-lg font-bold text-slate-800 border-b border-rose-50 pb-2">3. Capacity & Compatibility</h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <label for="target_donors" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Target Donors Count</label>
+                            <input type="number" name="target_donors" id="target_donors" min="1" required value="{% if drive %}{{ drive.target_donors }}{% endif %}"
+                                   class="block w-full px-4 py-3 border border-rose-100/80 rounded-2xl placeholder-gray-400 text-gray-900 font-medium focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition duration-150 sm:text-sm bg-rose-50/10"
+                                   placeholder="e.g., 50">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Target Blood Groups</label>
+                            <div class="grid grid-cols-2 gap-2 bg-rose-50/10 border border-rose-100/30 p-4 rounded-2xl">
+                                {% for blood_type in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] %}
+                                <div class="flex items-center">
+                                    <input id="blood_type_{{ blood_type }}" name="blood_types" type="checkbox" value="{{ blood_type }}"
+                                           class="focus:ring-primary-500 h-4.5 w-4.5 text-primary-600 border-rose-200 rounded cursor-pointer"
+                                           {% if drive and drive.blood_types_needed_list and blood_type in drive.blood_types_needed_list %}checked{% endif %}>
+                                    <label for="blood_type_{{ blood_type }}" class="ml-2.5 block text-sm font-bold text-gray-700 cursor-pointer select-none">
+                                        {{ blood_type }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div>
-                    <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
-                    <textarea name="notes" id="notes" rows="3"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
-                              placeholder="Any additional information...">{% if drive %}{{ drive.notes }}{% endif %}</textarea>
-                </div>
-            </div>
+                <!-- Section 4: Prerequisites -->
+                <div class="space-y-6">
+                    <h3 class="text-lg font-bold text-slate-800 border-b border-rose-50 pb-2">4. Guidelines & Pre-requisites</h3>
+                    
+                    <div>
+                        <label for="requirements" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Donor Eligibility Criteria</label>
+                        <textarea name="requirements" id="requirements" rows="3"
+                                  class="block w-full px-4 py-3 border border-rose-100/80 rounded-2xl placeholder-gray-400 text-gray-900 font-medium focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition duration-150 sm:text-sm bg-rose-50/10"
+                                  placeholder="List detailed requirements like age, body weight, or fast guidelines...">{% if drive %}{{ drive.requirements }}{% endif %}</textarea>
+                    </div>
 
-            <div class="flex justify-end space-x-4">
-                <a href="{{ url_for('blood_bank.dashboard') }}" 
-                   class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    Cancel
-                </a>
-                <button type="submit" 
-                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                    {% if is_edit %}Update Blood Drive{% else %}Schedule Blood Drive{% endif %}
-                </button>
-            </div>
-        </form>
+                    <div>
+                        <label for="notes" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Additional Organizer Notes</label>
+                        <textarea name="notes" id="notes" rows="3"
+                                  class="block w-full px-4 py-3 border border-rose-100/80 rounded-2xl placeholder-gray-400 text-gray-900 font-medium focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition duration-150 sm:text-sm bg-rose-50/10"
+                                  placeholder="Include extra reminders, certificates or refreshments updates...">{% if drive %}{{ drive.notes }}{% endif %}</textarea>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex justify-end gap-3.5 border-t border-rose-50/50 pt-8">
+                    <a href="{{ url_for('blood_bank.dashboard') }}" 
+                       class="px-6 py-3.5 border border-rose-100 hover:border-gray-400 text-sm font-bold rounded-2xl text-slate-600 bg-white transition duration-150">
+                        Cancel Requisition
+                    </a>
+                    <button type="submit" 
+                            class="px-6 py-3.5 border border-transparent text-sm font-bold rounded-2xl text-white bg-gradient-to-r from-primary-600 to-rose-500 hover:from-primary-700 hover:to-rose-600 shadow-premium hover:shadow-premium-hover transform hover:-translate-y-0.5 active:translate-y-0 transition duration-150 focus:outline-none focus:ring-4 focus:ring-primary-500/20 cursor-pointer">
+                        {% if is_edit %}Update Blood Campaign{% else %}Schedule Blood Campaign{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
-{% endblock %} 
+{% endblock %}
