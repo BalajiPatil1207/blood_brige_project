@@ -1,138 +1,143 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_required, current_user
-from app import db
-from app.models import Donation, Donor, BloodDrive, DriveRegistration
-from datetime import datetime, timedelta
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.models import Donation, User, BloodDrive, DriveRegistration
+from datetime import datetime
 
-bp = Blueprint('donor', __name__, url_prefix='/donor')
+bp = Blueprint('donor', __name__, url_prefix='/api/donor')
 
-@bp.route('/profile')
-@login_required
-def profile():
-    if not isinstance(current_user, Donor):
-        flash('Access denied', 'error')
-        return redirect(url_for('main.index'))
+@bp.route('/dashboard', methods=['GET'])
+@jwt_required()
+def dashboard():
+    user_id = get_jwt_identity()
+    user = User.objects(id=user_id).first()
     
-    # Get donation history
-    donations = Donation.query.filter_by(donor_id=current_user.id)\
-        .order_by(Donation.donation_date.desc()).all()
+    if not user or user.role != 'donor':
+        return jsonify({"msg": "Unauthorized"}), 403
+        
+    donations = Donation.objects(donor=user).order_by('-donation_date')
     
-    # Get registered blood drives
-    registered_drives = DriveRegistration.query.filter_by(
-        donor_id=current_user.id,
+    registered_drives = DriveRegistration.objects(
+        donor=user,
         status='REGISTERED'
-    ).join(BloodDrive).order_by(BloodDrive.start_date).all()
+    ).order_by('-registration_date')
     
-    return render_template('donor/profile.html',
-                         donations=donations,
-                         registered_drives=registered_drives)
+    donations_data = [{
+        "id": str(d.id),
+        "blood_type": d.blood_type,
+        "units": d.units,
+        "donation_date": d.donation_date.isoformat(),
+        "status": d.status
+    } for d in donations]
+    
+    drives_data = [{
+        "id": str(r.id),
+        "drive_id": str(r.blood_drive.id),
+        "title": r.blood_drive.title,
+        "date": r.blood_drive.start_date.isoformat(),
+        "location": r.blood_drive.location
+    } for r in registered_drives]
+    
+    return jsonify({
+        "donations": donations_data,
+        "registered_drives": drives_data
+    }), 200
 
-@bp.route('/donation-history')
-@login_required
-def donation_history():
-    if not isinstance(current_user, Donor):
-        flash('Access denied', 'error')
-        return redirect(url_for('main.index'))
-    
-    page = request.args.get('page', 1, type=int)
-    donations = Donation.query.filter_by(donor_id=current_user.id)\
-        .order_by(Donation.donation_date.desc())\
-        .paginate(page=page, per_page=10, error_out=False)
-    
-    return render_template('donor/donation_history.html', donations=donations)
-
-@bp.route('/schedule-donation', methods=['GET', 'POST'])
-@login_required
+@bp.route('/schedule-donation', methods=['POST'])
+@jwt_required()
 def schedule_donation():
-    if not isinstance(current_user, Donor):
-        flash('Access denied', 'error')
-        return redirect(url_for('main.index'))
+    user_id = get_jwt_identity()
+    user = User.objects(id=user_id).first()
     
-    if request.method == 'POST':
-        donation_date = datetime.strptime(
-            request.form.get('donation_date'), '%Y-%m-%d')
+    if not user or user.role != 'donor':
+        return jsonify({"msg": "Unauthorized"}), 403
         
-        # Check if donor is eligible
-        last_donation = Donation.query.filter_by(
-            donor_id=current_user.id,
-            status='COMPLETED'
-        ).order_by(Donation.donation_date.desc()).first()
+    data = request.get_json()
+    try:
+        donation_date = datetime.strptime(data.get('donation_date'), '%Y-%m-%d')
+    except ValueError:
+        donation_date = datetime.utcnow()
         
-        if last_donation and (donation_date - last_donation.donation_date).days < 56:
-            flash('You must wait 56 days between donations', 'error')
-            return redirect(url_for('donor.schedule_donation'))
+    last_donation = Donation.objects(
+        donor=user,
+        status='COMPLETED'
+    ).order_by('-donation_date').first()
+    
+    if last_donation and (donation_date - last_donation.donation_date).days < 56:
+        return jsonify({"msg": "You must wait 56 days between donations"}), 400
         
-        donation = Donation(
-            donor_id=current_user.id,
-            blood_type=current_user.blood_type,
-            donation_date=donation_date,
-            status='PENDING'
-        )
-        
-        db.session.add(donation)
-        db.session.commit()
-        
-        flash('Donation scheduled successfully and is awaiting admin approval!', 'success')
-        return redirect(url_for('donor.donation_history'))
-    
-    return render_template('donor/schedule_donation.html')
-
-@bp.route('/register-drive/<int:drive_id>', methods=['POST'])
-@login_required
-def register_for_drive(drive_id):
-    if not current_user.is_donor:
-        flash('Only donors can register for blood drives.', 'error')
-        return redirect(url_for('main.index'))
-    
-    drive = BloodDrive.query.get_or_404(drive_id)
-    
-    # Check if already registered
-    existing_registration = DriveRegistration.query.filter_by(
-        donor_id=current_user.id,
-        blood_drive_id=drive_id
-    ).first()
-    
-    if existing_registration:
-        flash('You are already registered for this blood drive.', 'info')
-        return redirect(url_for('main.blood_drive_detail', id=drive_id))
-    
-    # Create new registration
-    registration = DriveRegistration(
-        donor_id=current_user.id,
-        blood_drive_id=drive_id,
-        notes=request.form.get('notes', '')
+    donation = Donation(
+        donor=user,
+        blood_type=user.blood_type,
+        donation_date=donation_date,
+        status='PENDING'
     )
+    donation.save()
     
-    try:
-        db.session.add(registration)
-        db.session.commit()
-        flash('Successfully registered for the blood drive!', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error registering for blood drive: {str(e)}', 'error')
-    
-    return redirect(url_for('main.blood_drive_detail', id=drive_id))
+    return jsonify({"msg": "Donation scheduled successfully"}), 201
 
-@bp.route('/cancel-registration/<int:registration_id>', methods=['POST'])
-@login_required
-def cancel_registration(registration_id):
-    if not current_user.is_donor:
-        flash('Only donors can cancel registrations.', 'error')
-        return redirect(url_for('main.index'))
+@bp.route('/register-drive/<drive_id>', methods=['POST'])
+@jwt_required()
+def register_for_drive(drive_id):
+    user_id = get_jwt_identity()
+    user = User.objects(id=user_id).first()
     
-    registration = DriveRegistration.query.get_or_404(registration_id)
+    if not user or user.role != 'donor':
+        return jsonify({"msg": "Unauthorized"}), 403
+        
+    drive = BloodDrive.objects(id=drive_id).first()
+    if not drive:
+        return jsonify({"msg": "Drive not found"}), 404
+        
+    existing = DriveRegistration.objects(donor=user, blood_drive=drive).first()
+    if existing:
+        return jsonify({"msg": "Already registered"}), 400
+        
+    registration = DriveRegistration(
+        donor=user,
+        blood_drive=drive,
+        notes=request.get_json().get('notes', '')
+    )
+    registration.save()
     
-    # Verify ownership
-    if registration.donor_id != current_user.id:
-        flash('You can only cancel your own registrations.', 'error')
-        return redirect(url_for('main.index'))
+    return jsonify({"msg": "Successfully registered"}), 201
+
+@bp.route('/notifications', methods=['GET'])
+@jwt_required()
+def get_notifications():
+    from app.models import Notification
+    user_id = get_jwt_identity()
+    user = User.objects(id=user_id).first()
     
-    try:
-        registration.status = 'cancelled'
-        db.session.commit()
-        flash('Registration cancelled successfully.', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error cancelling registration: {str(e)}', 'error')
+    if not user or user.role != 'donor':
+        return jsonify({"msg": "Unauthorized"}), 403
+        
+    notifications = Notification.objects(user=user, is_read=False).order_by('-created_at')
     
-    return redirect(url_for('main.blood_drive_detail', id=registration.blood_drive_id)) 
+    data = [{
+        "id": str(n.id),
+        "message": n.message,
+        "is_read": n.is_read,
+        "created_at": n.created_at.isoformat(),
+        "request_id": str(n.related_request.id) if n.related_request else None
+    } for n in notifications]
+    
+    return jsonify({"notifications": data}), 200
+
+@bp.route('/notifications/<notif_id>/read', methods=['PUT'])
+@jwt_required()
+def mark_notification_read(notif_id):
+    from app.models import Notification
+    user_id = get_jwt_identity()
+    user = User.objects(id=user_id).first()
+    
+    if not user or user.role != 'donor':
+        return jsonify({"msg": "Unauthorized"}), 403
+        
+    notification = Notification.objects(id=notif_id, user=user).first()
+    if not notification:
+        return jsonify({"msg": "Notification not found"}), 404
+        
+    notification.is_read = True
+    notification.save()
+    
+    return jsonify({"msg": "Notification marked as read"}), 200

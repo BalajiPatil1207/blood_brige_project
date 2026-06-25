@@ -6,11 +6,11 @@ load_dotenv()
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'd49f9a6b4fd10aef72697d037bddc087705cc09eb27fd9f3e6a08cb2138c9df2'
     
-    # Database URI - Uses environment variable, falls back to SQLite, with RDS as an alternative option
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-                              'sqlite:///app.db'
-
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Database URI - MongoDB Atlas connection
+    MONGODB_SETTINGS = {
+        'host': os.environ.get('MONGODB_URI') or 'mongodb+srv://balajipatil3252_db_user:FXaIUz6thyMK9azA@cluster0.ex3gdnr.mongodb.net/bloodbridge?retryWrites=true&w=majority',
+        'connect': False
+    }
 
     # Mail settings (जर नको असतील तर काढून टाका)
     MAIL_SERVER = 'smtp.gmail.com'

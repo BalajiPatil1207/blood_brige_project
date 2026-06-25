@@ -1,22 +1,29 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
+from flask_mongoengine import MongoEngine
 from config import Config
 from flask_socketio import SocketIO
+from flask_cors import CORS
+from flask_jwt_extended import JWTManager
+from datetime import timedelta
 
-socketio = SocketIO()
+socketio = SocketIO(cors_allowed_origins="*")
 
-db = SQLAlchemy()
-login_manager = LoginManager()
-login_manager.login_view = 'auth.login'
-
+db = MongoEngine()
+jwt = JWTManager()
 
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    
+    # Enable CORS for all routes (React frontend will be on a different port)
+    CORS(app, supports_credentials=True)
+    
+    # Configure JWT
+    app.config["JWT_SECRET_KEY"] = app.config.get('SECRET_KEY', 'super-secret')
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 
     db.init_app(app)
-    login_manager.init_app(app)
+    jwt.init_app(app)
 
     # IMPORTANT
     socketio.init_app(app)
@@ -31,10 +38,5 @@ def create_app(config_class=Config):
     app.register_blueprint(hospital.bp)
     app.register_blueprint(blood_bank.bp)
     app.register_blueprint(admin.bp)
-
-    # Table create
-    with app.app_context():
-        from app import models
-        db.create_all()
 
     return app

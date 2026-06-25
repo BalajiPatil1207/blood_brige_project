@@ -1,97 +1,108 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_user, logout_user, current_user, login_required
-from app import db
-from app.models import User, Hospital, BloodBank, Donor
-from urllib.parse import urlparse  # ✅ Replaced werkzeug.urls import
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from app.models import User, Hospital, BloodBank
 
-bp = Blueprint('auth', __name__)
+bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
-@bp.route('/login', methods=['GET', 'POST'])
+@bp.route('/login', methods=['POST'])
 def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('main.index'))
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
     
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        user = User.query.filter_by(email=email).first()
-        
-        if user is None or not user.check_password(password):
-            flash('Invalid email or password', 'error')
-            return redirect(url_for('auth.login'))
-        
-        login_user(user, remember=request.form.get('remember_me'))
-        next_page = request.args.get('next')
-        if not next_page or urlparse(next_page).netloc != '':
-            next_page = url_for('main.index')
-        return redirect(next_page)
+    user = User.objects(email=email).first()
     
-    return render_template('auth/login.html')
+    if user is None or not user.check_password(password):
+        return jsonify({"msg": "Invalid email or password"}), 401
+    
+    access_token = create_access_token(identity=str(user.id))
+    return jsonify({
+        "token": access_token,
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "role": user.role,
+            "first_name": user.first_name,
+            "last_name": user.last_name
+        }
+    }), 200
 
-@bp.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('main.index'))
-
-@bp.route('/register/<user_type>', methods=['GET', 'POST'])
+@bp.route('/register/<user_type>', methods=['POST'])
 def register(user_type):
-    if current_user.is_authenticated:
-        return redirect(url_for('main.index'))
-    
     if user_type not in ['donor', 'hospital', 'blood_bank']:
-        flash('Invalid user type', 'error')
-        return redirect(url_for('main.index'))
+        return jsonify({"msg": "Invalid user type"}), 400
     
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
-        phone = request.form.get('phone')
-        address = request.form.get('address')
-        
-        if User.query.filter_by(email=email).first():
-            flash('Email already registered', 'error')
-            return redirect(url_for('auth.register', user_type=user_type))
-        
-        if user_type == 'donor':
-            user = Donor(
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
-                phone=phone,
-                address=address,
-                blood_type=request.form.get('blood_type')
-            )
-        elif user_type == 'hospital':
-            user = Hospital(
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
-                phone=phone,
-                address=address,
-                hospital_name=request.form.get('hospital_name'),
-                license_number=request.form.get('license_number'),
-                emergency_contact=request.form.get('emergency_contact')
-            )
-        else:  # blood_bank
-            user = BloodBank(
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
-                phone=phone,
-                address=address,
-                bank_name=request.form.get('bank_name'),
-                license_number=request.form.get('license_number'),
-                emergency_contact=request.form.get('emergency_contact')
-            )
-        
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        
-        flash('Registration successful! Please log in.', 'success')
-        return redirect(url_for('auth.login'))
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    first_name = data.get('first_name')
+    last_name = data.get('last_name')
+    phone = data.get('phone')
+    address = data.get('address')
     
-    return render_template(f'auth/register_{user_type}.html')
+    if User.objects(email=email).first():
+        return jsonify({"msg": "Email already registered"}), 409
+    
+    if user_type == 'donor':
+        user = User(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            address=address,
+            role='donor',
+            blood_type=data.get('blood_type')
+        )
+    elif user_type == 'hospital':
+        user = Hospital(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            address=address,
+            role='hospital',
+            name=data.get('hospital_name')
+        )
+    else:  # blood_bank
+        user = BloodBank(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            address=address,
+            role='blood_bank',
+            name=data.get('bank_name')
+        )
+    
+    user.set_password(password)
+    user.save()
+    
+    return jsonify({"msg": "Registration successful"}), 201
+
+@bp.route('/me', methods=['GET'])
+@jwt_required()
+def me():
+    current_user_id = get_jwt_identity()
+    user = User.objects(id=current_user_id).first()
+    
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+        
+    user_data = {
+        "id": str(user.id),
+        "email": user.email,
+        "role": user.role,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "phone": user.phone,
+        "address": user.address
+    }
+    
+    if user.role == 'donor':
+        user_data['blood_type'] = user.blood_type
+    elif user.role == 'hospital':
+        user_data['name'] = user.name
+    elif user.role == 'blood_bank':
+        user_data['name'] = user.name
+        
+    return jsonify(user_data), 200
