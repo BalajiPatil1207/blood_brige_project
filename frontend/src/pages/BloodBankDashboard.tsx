@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import api from '../api';
 import Sidebar from '../components/Sidebar';
 import { Droplet, Plus, Calendar, TrendingUp, Package, Activity, AlertCircle, CheckCircle2, Cpu, QrCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -38,11 +39,40 @@ const BloodBankDashboard = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [modalAction, setModalAction] = useState<{title: string, msg: string, action: () => void} | null>(null);
 
+  const fetchDashboardData = async () => {
+    try {
+      const res = await api.get('/blood-bank/dashboard');
+      if (res.data?.inventory && res.data.inventory.length > 0) {
+        const backendInvMap = new Map(res.data.inventory.map((i: any) => [i.blood_type, i.units]));
+        setInventory(prev => prev.map(item => {
+          if (backendInvMap.has(item.type)) {
+            const units = Number(backendInvMap.get(item.type));
+            let status = 'good';
+            if (units < 10) status = 'critical';
+            else if (units < 20) status = 'low';
+            return { ...item, units, status };
+          }
+          return item;
+        }));
+      }
+      if (res.data?.recent_drives && res.data.recent_drives.length > 0) {
+        setDrives(res.data.recent_drives.map((d: any) => ({
+          title: d.title,
+          date: d.date ? d.date.split('T')[0] : 'Upcoming',
+          location: d.location || 'Blood Center Pune'
+        })));
+      }
+    } catch (err) {
+      console.log('Blood bank dashboard initial sync:', err);
+    }
+  };
+
   useEffect(() => {
     const userStr = localStorage.getItem('user');
     if (userStr) {
       setUser(JSON.parse(userStr));
     }
+    fetchDashboardData();
   }, []);
 
   const triggerConfirm = (title: string, msg: string, action: () => void) => {
@@ -92,14 +122,16 @@ const BloodBankDashboard = () => {
     }
   };
 
-  const handleAddInventory = (e: React.FormEvent) => {
+  const handleAddInventory = async (e: React.FormEvent) => {
     e.preventDefault();
     const type = (document.getElementById('bloodType') as HTMLSelectElement).value;
     const units = parseInt((document.getElementById('units') as HTMLInputElement).value);
     
+    let targetUnits = 0;
     setInventory(inventory.map(item => {
       if (item.type === type) {
         const newUnits = item.units + units;
+        targetUnits = newUnits;
         let newStatus = 'good';
         if (newUnits < 10) newStatus = 'critical';
         else if (newUnits < 20) newStatus = 'low';
@@ -108,9 +140,18 @@ const BloodBankDashboard = () => {
       return item;
     }));
     setShowAddInventory(false);
+
+    try {
+      await api.post('/blood-bank/update-inventory', {
+        blood_type: type,
+        units: targetUnits
+      });
+    } catch (err) {
+      console.error("Failed to sync inventory with server", err);
+    }
   };
 
-  const handleScheduleDrive = (e: React.FormEvent) => {
+  const handleScheduleDrive = async (e: React.FormEvent) => {
     e.preventDefault();
     const title = (document.getElementById('driveTitle') as HTMLInputElement).value;
     const date = (document.getElementById('driveDate') as HTMLInputElement).value;
@@ -118,6 +159,19 @@ const BloodBankDashboard = () => {
     
     setDrives([...drives, { title, date, location: locationStr }]);
     setShowScheduleDrive(false);
+
+    try {
+      await api.post('/blood-bank/schedule-drive', {
+        title,
+        location: locationStr,
+        start_date: date,
+        end_date: date,
+        target_donors: 50,
+        blood_types_needed: 'All'
+      });
+    } catch (err) {
+      console.error("Failed to sync drive with server", err);
+    }
   };
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -332,7 +386,7 @@ const BloodBankDashboard = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-10">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Dashboard Overview</h1>
-            <p className="text-slate-500 mt-1">Welcome back. Here is your daily summary.</p>
+            <p className="text-slate-500 mt-1">Welcome back, {user?.name || user?.first_name || 'Blood Bank'}. Here is your daily summary.</p>
           </div>
           <div className="mt-4 md:mt-0 flex items-center gap-4">
             <button 

@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Activity, Users, Droplet, Calendar, CheckCircle, XCircle } from 'lucide-react';
-import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import api from '../api';
 import { useNavigate } from 'react-router-dom';

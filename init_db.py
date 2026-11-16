@@ -1,139 +1,139 @@
-from app import create_app, db
-from app.models import User, BloodBank, Hospital, BloodDrive, BloodInventory, Donor, BloodRequest, Admin
+from app import create_app
+from app.models import User, BloodBank, Hospital, BloodDrive, BloodInventory, BloodRequest
 from datetime import datetime, timedelta
-from werkzeug.security import generate_password_hash
 
 def init_db():
     app = create_app()
     with app.app_context():
-        # Drop all tables and recreate them (handled by migrations now, but good for dev reset)
-        db.drop_all()
-        db.create_all()
+        print("Connecting to MongoDB and initializing sample records...")
 
-        # Create sample users
-        admin = Admin(
-            email='admin@gmail.com',
-            password_hash=generate_password_hash('admin@123'),
-            first_name='Admin',
-            last_name='User',
-            is_active=True
-        )
-        
-        blood_bank = BloodBank(
-            email='bloodbank@example.com',
-            password_hash=generate_password_hash('bank123'),
-            first_name='City',
-            last_name='Blood Bank',
-            bank_name='City Blood Bank',
-            license_number='BB-12345',
-            emergency_contact='555-0000',
-            phone='555-0123',
-            address='123 Main St, City',
-            is_active=True,
-            user_type='blood_bank'
-        )
-        
-        hospital = Hospital(
-            email='hospital@example.com',
-            password_hash=generate_password_hash('hospital123'),
-            first_name='City',
-            last_name='Hospital',
-            hospital_name='City General Hospital',
-            license_number='HOSP-67890',
-            emergency_contact='555-1111',
-            phone='555-0124',
-            address='456 Health Ave, City',
-            is_active=True,
-            user_type='hospital'
-        )
-        
-        donor = Donor(
-            email='donor@example.com',
-            password_hash=generate_password_hash('donor123'),
-            first_name='John',
-            last_name='Doe',
-            blood_type='O+',
-            is_active=True,
-            user_type='donor'
-        )
+        # 1. Admin User
+        admin = User.objects(email='admin@gmail.com').first()
+        if not admin:
+            admin = User(
+                email='admin@gmail.com',
+                first_name='Admin',
+                last_name='Officer',
+                role='admin',
+                phone='+91 98765 00001',
+                address='Pune Health Division',
+                is_active=True
+            )
+            admin.set_password('admin@123')
+            admin.save()
+            print("Created Admin user: admin@gmail.com / admin@123")
 
-        # Add and commit users first
-        db.session.add_all([admin, blood_bank, hospital, donor])
-        db.session.commit()
+        # 2. Blood Bank User
+        blood_bank = BloodBank.objects(email='bloodbank@example.com').first()
+        if not blood_bank:
+            blood_bank = BloodBank(
+                email='bloodbank@example.com',
+                first_name='Central',
+                last_name='Blood Bank',
+                name='Pune Central Blood Bank',
+                role='blood_bank',
+                phone='+91 98765 00002',
+                address='Shivaji Nagar, Pune',
+                is_active=True
+            )
+            blood_bank.set_password('bank123')
+            blood_bank.save()
+            print("Created Blood Bank: bloodbank@example.com / bank123")
 
-        # Create sample blood inventory
-        inventory_o_pos = BloodInventory(
-            blood_bank_id=blood_bank.id,
-            blood_type='O+',
-            units_available=100
-        )
-        inventory_a_neg = BloodInventory(
-            blood_bank_id=blood_bank.id,
-            blood_type='A-',
-            units_available=50
-        )
-        inventory_b_pos = BloodInventory(
-            blood_bank_id=blood_bank.id,
-            blood_type='B+',
-            units_available=75
-        )
-        inventory_ab_pos = BloodInventory(
-            blood_bank_id=blood_bank.id,
-            blood_type='AB+',
-            units_available=20
-        )
+        # 3. Hospital User
+        hospital = Hospital.objects(email='hospital@example.com').first()
+        if not hospital:
+            hospital = Hospital(
+                email='hospital@example.com',
+                first_name='City',
+                last_name='General',
+                name='City General Hospital Pune',
+                role='hospital',
+                phone='+91 98765 00003',
+                address='FC Road, Pune',
+                is_active=True
+            )
+            hospital.set_password('hospital123')
+            hospital.save()
+            print("Created Hospital: hospital@example.com / hospital123")
 
-        # Create sample blood drives
-        blood_drive1 = BloodDrive(
-            organizer_id=blood_bank.id,
-            title='Community Blood Drive',
-            location='City Community Center',
-            description='Join us for our monthly community blood drive',
-            start_date=datetime.now() + timedelta(days=7),
-            end_date=datetime.now() + timedelta(days=7, hours=8),
-        )
-        
-        blood_drive2 = BloodDrive(
-            organizer_id=blood_bank.id,
-            title='Emergency Blood Collection',
-            location='City Hospital',
-            description='Urgent blood collection for emergency needs',
-            start_date=datetime.now() + timedelta(days=3),
-            end_date=datetime.now() + timedelta(days=3, hours=6),
-        )
+        # 4. Donor User
+        donor = User.objects(email='donor@example.com').first()
+        if not donor:
+            donor = User(
+                email='donor@example.com',
+                first_name='Rahul',
+                last_name='Sharma',
+                role='donor',
+                blood_type='O+',
+                phone='+91 98765 00004',
+                address='Kothrud, Pune',
+                is_active=True
+            )
+            donor.set_password('donor123')
+            donor.save()
+            print("Created Donor: donor@example.com / donor123")
 
-        # Create sample blood requests (formerly emergency requests)
-        blood_request1 = BloodRequest(
-            hospital_id=hospital.id,
-            requester_id=hospital.id,
-            blood_type='O-',
-            units_needed=5,
-            priority='CRITICAL',
-            patient_details='Emergency surgery patient',
-            deadline=datetime.now() + timedelta(hours=24),
-            status='PENDING'
-        )
-        
-        blood_request2 = BloodRequest(
-            hospital_id=hospital.id,
-            requester_id=hospital.id,
-            blood_type='A+',
-            units_needed=3,
-            priority='HIGH',
-            patient_details='Trauma patient',
-            deadline=datetime.now() + timedelta(hours=48),
-            status='PENDING'
-        )
+        # 5. Blood Inventory
+        groups = [
+            ('A+', 45), ('A-', 12), ('B+', 38), ('B-', 8),
+            ('AB+', 25), ('AB-', 4), ('O+', 50), ('O-', 15)
+        ]
+        for bg, units in groups:
+            item = BloodInventory.objects(blood_bank=blood_bank, blood_type=bg).first()
+            if not item:
+                item = BloodInventory(
+                    blood_bank=blood_bank,
+                    blood_type=bg,
+                    units_available=units
+                )
+                item.save()
+        print("Seeded blood inventory items.")
 
-        # Add all objects to the session
-        db.session.add_all([
-            inventory_o_pos, inventory_a_neg, inventory_b_pos, inventory_ab_pos,
-            blood_drive1, blood_drive2,
-            blood_request1, blood_request2
-        ])
-        # Commit the changes
-        db.session.commit()
-        print('Database initialized with sample data!')
+        # 6. Sample Blood Drives
+        if BloodDrive.objects(blood_bank=blood_bank).count() == 0:
+            drive1 = BloodDrive(
+                blood_bank=blood_bank,
+                title='Pune Youth Blood Donation Camp',
+                location='Shivaji Nagar Community Hall, Pune',
+                description='Annual youth blood donation drive in partnership with Red Cross.',
+                start_date=datetime.utcnow() + timedelta(days=5),
+                end_date=datetime.utcnow() + timedelta(days=5, hours=8),
+                target_donors=100,
+                blood_types_needed='O+, A+, B+, AB+',
+                status='scheduled'
+            )
+            drive1.save()
+
+            drive2 = BloodDrive(
+                blood_bank=blood_bank,
+                title='Emergency Monsoon Blood Collection',
+                location='City Hospital Campus, Pune',
+                description='Urgent drive to replenish platelet and negative blood supplies.',
+                start_date=datetime.utcnow() + timedelta(days=12),
+                end_date=datetime.utcnow() + timedelta(days=12, hours=6),
+                target_donors=60,
+                blood_types_needed='O-, B-, AB-',
+                status='scheduled'
+            )
+            drive2.save()
+            print("Seeded sample blood drives.")
+
+        # 7. Sample Blood Requests
+        if BloodRequest.objects(hospital=hospital).count() == 0:
+            req1 = BloodRequest(
+                hospital=hospital,
+                blood_type='O-',
+                units_needed=4,
+                priority='CRITICAL',
+                patient_details='Emergency cardiac bypass surgery in ICU',
+                deadline=datetime.utcnow() + timedelta(hours=24),
+                status='PENDING'
+            )
+            req1.save()
+            print("Seeded urgent blood request.")
+
+        print("\nAll sample seed data created successfully!")
 
 if __name__ == '__main__':
-    init_db() 
+    init_db()

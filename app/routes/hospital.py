@@ -150,6 +150,20 @@ def create_emergency_request():
         )
         notification.save()
         count += 1
+
+    # Broadcast real-time emergency alert via Socket.IO
+    try:
+        from app import socketio
+        hospital_display_name = getattr(user, 'name', None) or f"{user.first_name} Hospital"
+        socketio.emit('emergency_alert', {
+            'hospital': hospital_display_name,
+            'blood_type': blood_type,
+            'units': units_needed,
+            'distance': '1.8 km',
+            'contact': user.phone or '+91 98765 43210'
+        })
+    except Exception as e:
+        print(f"Socket.IO emit error: {e}")
         
     return jsonify({
         "msg": f"Emergency Request created successfully. Alerted {count} matched donors.",

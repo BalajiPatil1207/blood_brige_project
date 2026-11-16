@@ -1,26 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, MapPin, Phone, Activity } from 'lucide-react';
+import { io } from 'socket.io-client';
 
 const EmergencyAlert = () => {
   const [isActive, setIsActive] = useState(false);
   const [emergencyData, setEmergencyData] = useState<any>(null);
 
-  // We will integrate real Socket.IO here later. 
-  // For now, the automatic timeout is disabled so it doesn't annoy the user.
   useEffect(() => {
-    // const timer = setTimeout(() => {
-    //   setEmergencyData({
-    //     hospital: "City Central Hospital",
-    //     blood_type: "O-",
-    //     distance: "2.4 km",
-    //     units: 3,
-    //     contact: "+91 98765 43210"
-    //   });
-    //   setIsActive(true);
-    // }, 15000); 
+    // Listen to real-time socket events from Flask-SocketIO backend
+    const socket = io('http://localhost:5000', {
+      transports: ['websocket', 'polling'],
+      autoConnect: true
+    });
 
-    // return () => clearTimeout(timer);
+    socket.on('connect', () => {
+      console.log('Connected to real-time Emergency alert channel');
+    });
+
+    socket.on('emergency_alert', (data: any) => {
+      console.log('Emergency alert received:', data);
+      setEmergencyData(data);
+      setIsActive(true);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   if (!isActive) return null;

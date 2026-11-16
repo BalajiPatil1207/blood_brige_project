@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Activity, Users, Shield, ArrowRight, Droplet } from 'lucide-react';
+import { Activity, Users, Shield, Droplet } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import api from '../api';

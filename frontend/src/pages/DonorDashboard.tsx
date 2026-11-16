@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import Navbar from '../components/Navbar';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { Droplet, Calendar, Award, Clock, MapPin, Activity, ArrowRight, CheckCircle2, Trophy, Medal, Star, Download, Package } from 'lucide-react';
 import { motion } from 'framer-motion';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import api from '../api';
 
 const DonorDashboard = () => {
   const [user, setUser] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const location = useLocation();
+  const currentPath = location.pathname;
 
   const generatePDF = async (donation: any) => {
     // Inject dynamic data into the template
@@ -21,10 +24,6 @@ const DonorDashboard = () => {
     const input = document.getElementById('certificate-template');
     if (!input) return;
 
-    // Temporarily bring the element to view for capturing to prevent blank canvas on some browsers
-    const origLeft = input.style.left;
-    const origPos = input.style.position;
-    
     try {
       const canvas = await html2canvas(input, { scale: 2, useCORS: true });
       const imgData = canvas.toDataURL('image/png');
@@ -84,8 +83,18 @@ const DonorDashboard = () => {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-10">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Welcome back, {user?.first_name || 'Donor'}!</h1>
-            <p className="text-slate-500 mt-1">Here is an overview of your donation journey.</p>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+              {currentPath === '/donor/history' ? 'Donation History' :
+               currentPath === '/donor/rewards' ? 'Rewards & Badges' :
+               currentPath === '/donor/schedule' ? 'Schedule a Donation' :
+               `Welcome back, ${user?.first_name || 'Donor'}!`}
+            </h1>
+            <p className="text-slate-500 mt-1">
+              {currentPath === '/donor/history' ? 'Detailed records of all your blood contributions and downloadable certificates.' :
+               currentPath === '/donor/rewards' ? 'Track your achievements, milestones, and lifesaving impact badges.' :
+               currentPath === '/donor/schedule' ? 'Book your next appointment with a certified blood bank or mobile drive.' :
+               'Here is an overview of your donation journey.'}
+            </p>
           </div>
           <div className="mt-4 md:mt-0 flex items-center gap-4">
             <div className="px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm flex items-center gap-3">
